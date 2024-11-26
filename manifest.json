@@ -1,0 +1,29 @@
+{
+    "manifest_version": 3,
+    "name": "mybili-cookie",
+    "author": "eller",
+    "description": "update cookie for you",
+    "version": "1.0",
+    "permissions": [ "activeTab", "cookies", "notifications","alarms","storage"],
+  
+    "background": {
+      "service_worker": "background.js",
+      "type": "module"
+    },
+  
+    "action": {
+      "default_popup": "popup.html",
+      "default_icon": "logo.png"
+    },
+    "host_permissions": [
+        "http://*/*",
+        "https://*/*"
+    ],
+  
+    "icons": {
+      "16": "logo.png",
+      "48": "logo.png",
+      "128": "logo.png"
+    }
+  }
+  
