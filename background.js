@@ -28,28 +28,31 @@ const isTimeIntervalValid = async() => {
 
 
 const timeTask = async()=>{
-    const apiHost = await getApiHost()
-    if(!apiHost){
-        console.log('api host 未正确设置')
-        return
-    }
-    if (!await isTimeIntervalValid()) {
-        console.log('请求过于频繁，请稍等...');
-        return;
-    }
+    try {
+        const apiHost = await getApiHost()
+        if(!apiHost){
+            console.log('api host 未正确设置')
+            return
+        }
+        if (!await isTimeIntervalValid()) {
+            console.log('请求过于频繁，请稍等...');
+            return;
+        }
 
-    // 更新请求时间
-    await setLastRequestTime();
+        // 更新请求时间
+        await setLastRequestTime();
 
-
-    if (await isLogged() == false) {
-        console.log('未登录, 去获取cookie');
-        const allCookie = await getAllCookies({ url: 'https://www.bilibili.com', partitionKey: { topLevelSite: 'https://www.bilibili.com' } });
-        const cookieText = formatMap.netscape.serializer(allCookie);
-        // 上传cookie
-        uploadCookie(cookieText);
-    } else {
-        console.log('已经登录');
+        if (await isLogged() == false) {
+            console.log('未登录, 去获取cookie');
+            const allCookie = await getAllCookies({ url: 'https://www.bilibili.com', partitionKey: { topLevelSite: 'https://www.bilibili.com' } });
+            const cookieText = formatMap.netscape.serializer(allCookie);
+            const ok = await uploadCookie(cookieText);
+            console.log(ok ? 'cookie 同步成功' : 'cookie 同步失败');
+        } else {
+            console.log('已经登录');
+        }
+    } catch (e) {
+        console.error('timeTask 异常:', e);
     }
 }
 
