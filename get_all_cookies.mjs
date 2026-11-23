@@ -1,5 +1,4 @@
-// https://github.com/kairi003/Get-cookies.txt-Locally
-// Modified from
+import { getCurrentCookieStoreId } from './cookie_store_helper.mjs';
 
 /**
  * Get all cookies that match the given criteria.
@@ -7,32 +6,31 @@
  * @returns {Promise<chrome.cookies.Cookie[]>}
  */
 export default async function getAllCookies(details) {
-    details.storeId ??= await getCurrentCookieStoreId();
-    const { partitionKey, ...detailsWithoutPartitionKey } = details;
-    if (partitionKey) {
-      // 优先尝试带 partitionKey 的请求（Chrome ≥ 119），失败则回退
-      const cookies = await Promise.resolve()
-        .then(() => chrome.cookies.getAll(details))
-        .catch(() => chrome.cookies.getAll(detailsWithoutPartitionKey));
-      return cookies;
+    const queryDetails = { ...details };
+    const storeId = queryDetails.storeId ?? (await getCurrentCookieStoreId());
+    if (storeId) {
+        queryDetails.storeId = storeId;
+    } else {
+        delete queryDetails.storeId;
     }
-    return await chrome.cookies.getAll(detailsWithoutPartitionKey);
-  }
-  
-  /**
-   * Get the current cookie store ID.
-   * @returns {Promise<string | undefined>}
-   */
-  const getCurrentCookieStoreId = async () => {
-    // If the extension is in split incognito mode, return undefined to choose the default store.
-    if (chrome.runtime.getManifest().incognito === 'split') return undefined;
-  
-    // Firefox supports the `tab.cookieStoreId` property.
-    const [tab] = await chrome.tabs.query({ active: true});
-    if (tab.cookieStoreId) return tab.cookieStoreId;
-  
-    // Chrome does not support the `tab.cookieStoreId` property.
-    const stores = await chrome.cookies.getAllCookieStores();
-    return stores.find((store) => store.tabIds.includes(tab.id))?.id;
-  };
-  
+
+    const { partitionKey, ...detailsWithoutPartitionKey } = queryDetails;
+    // 始终获取非分区 Cookie；若传入 partitionKey，同时尝试获取分区 Cookie 并合并去重
+    const unpartitionedCookies = await chrome.cookies.getAll(detailsWithoutPartitionKey);
+    if (!partitionKey) {
+        return unpartitionedCookies;
+    }
+
+    const partitionedCookies = await Promise.resolve()
+        .then(() => chrome.cookies.getAll(queryDetails))
+        .catch(() => []);
+
+    const cookieMap = new Map();
+    for (const c of [...unpartitionedCookies, ...partitionedCookies]) {
+        const key = `${c.domain}|${c.path}|${c.name}|${c.storeId || ''}`;
+        if (!cookieMap.has(key)) {
+            cookieMap.set(key, c);
+        }
+    }
+    return Array.from(cookieMap.values());
+}
